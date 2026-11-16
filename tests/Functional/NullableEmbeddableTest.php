@@ -8,12 +8,16 @@ use Doctrine\ORM\EntityManagerInterface;
 use Doctrine\ORM\Tools\SchemaTool;
 use PHPUnit\Framework\Attributes\Test;
 use Symfony\Bundle\FrameworkBundle\Test\KernelTestCase;
+use Hyphaeworks\NullableEmbeddableBundle\Exception\ReadonlyEmbeddedPropertyException;
 use Hyphaeworks\NullableEmbeddableBundle\Tests\Functional\Entity\AttributesTestEntity;
 use Hyphaeworks\NullableEmbeddableBundle\Tests\Functional\Entity\EmailAddress;
 use Hyphaeworks\NullableEmbeddableBundle\Tests\Functional\Entity\EntityWithNestedEmbeddable;
+use Hyphaeworks\NullableEmbeddableBundle\Tests\Functional\Entity\EntityWithReadonlyEmbedded;
+use Hyphaeworks\NullableEmbeddableBundle\Tests\Functional\Entity\EntityWithReadonlyNestedEmbedded;
 use Hyphaeworks\NullableEmbeddableBundle\Tests\Functional\Entity\EntityWithStrictEmailAddress;
 use Hyphaeworks\NullableEmbeddableBundle\Tests\Functional\Entity\Owner;
 use Hyphaeworks\NullableEmbeddableBundle\Tests\Functional\Entity\Price;
+use Hyphaeworks\NullableEmbeddableBundle\Tests\Functional\Entity\PriceWithReadonlyContact;
 use Hyphaeworks\NullableEmbeddableBundle\Tests\Functional\XmlEntity\XmlTestEntity;
 
 final class NullableEmbeddableTest extends KernelTestCase
@@ -101,6 +105,32 @@ final class NullableEmbeddableTest extends KernelTestCase
         $reloaded = $this->persistAndReload(new EntityWithNestedEmbeddable(new Price(amount: 100)));
 
         self::assertEquals(new Price(amount: 100), $reloaded->getPrice());
+    }
+
+    #[Test]
+    public function readonlyEmbeddedPropertyIsRejected(): void
+    {
+        $this->expectException(ReadonlyEmbeddedPropertyException::class);
+        $this->expectExceptionMessage(EntityWithReadonlyEmbedded::class.'::$emailAddress is readonly');
+
+        $this->persistAndReload(new EntityWithReadonlyEmbedded());
+    }
+
+    #[Test]
+    public function readonlyEmbeddedPropertyIsRejectedEvenWhenEmbeddableHasValue(): void
+    {
+        $this->expectException(ReadonlyEmbeddedPropertyException::class);
+
+        $this->persistAndReload(new EntityWithReadonlyEmbedded(new EmailAddress(address: 'someone@example.com')));
+    }
+
+    #[Test]
+    public function readonlyNestedEmbeddedPropertyIsRejected(): void
+    {
+        $this->expectException(ReadonlyEmbeddedPropertyException::class);
+        $this->expectExceptionMessage(PriceWithReadonlyContact::class.'::$contact is readonly');
+
+        $this->persistAndReload(new EntityWithReadonlyNestedEmbedded(new PriceWithReadonlyContact(amount: 100)));
     }
 
     /**

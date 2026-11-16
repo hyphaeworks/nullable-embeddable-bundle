@@ -8,6 +8,7 @@ use Doctrine\ORM\Event\PostLoadEventArgs;
 use Doctrine\ORM\Mapping\EmbeddedClassMapping;
 use Hyphaeworks\NullableEmbeddableBundle\Attribute\ContainsNullableEmbeddable;
 use Hyphaeworks\NullableEmbeddableBundle\Attribute\NullableEmbedded;
+use Hyphaeworks\NullableEmbeddableBundle\Exception\ReadonlyEmbeddedPropertyException;
 
 final class NullableEmbeddableListener
 {
@@ -48,6 +49,9 @@ final class NullableEmbeddableListener
             $property = $owner === $entity ? $entityClass->getProperty($fieldName) : new \ReflectionProperty($owner, $fieldName);
             if (!$this->isNullable($property)) {
                 continue;
+            }
+            if ($property->isReadOnly()) {
+                throw ReadonlyEmbeddedPropertyException::forProperty($property);
             }
 
             /** @var object|null $value */
