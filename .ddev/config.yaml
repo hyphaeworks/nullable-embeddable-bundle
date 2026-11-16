@@ -1,0 +1,7 @@
+name: nullable-embeddable-bundle
+type: php
+docroot: ""
+php_version: "8.5"
+composer_version: "2"
+webserver_type: nginx-fpm
+omit_containers: [db]

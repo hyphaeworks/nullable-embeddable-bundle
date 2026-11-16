@@ -1,0 +1,37 @@
+#!/usr/bin/env bash
+
+## Description: Run the test suite for one CI matrix combination in a throwaway copy of the repository
+## Usage: test-matrix <php> <symfony> <orm-constraint> [highest|lowest]
+## Example: ddev test-matrix 8.2 6.4 ^2.17 lowest
+
+set -euo pipefail
+
+php_version=$1
+symfony_version=$2
+orm_constraint=$3
+dependencies=${4:-highest}
+
+work_directory=$(mktemp -d)
+trap 'rm -rf "$work_directory"' EXIT
+cp -r composer.json phpunit.xml.dist src tests "$work_directory"
+cd "$work_directory"
+
+composer_binary=$(command -v composer)
+run_composer() {
+    "php$php_version" "$composer_binary" --no-interaction "$@"
+}
+
+run_composer global config allow-plugins.symfony/flex true
+run_composer global require --quiet symfony/flex
+export SYMFONY_REQUIRE="$symfony_version.*"
+
+run_composer remove --dev --no-update vimeo/psalm friendsofphp/php-cs-fixer
+run_composer require --no-update "doctrine/orm:$orm_constraint"
+if [ "$dependencies" = lowest ]; then
+    run_composer update --prefer-lowest --prefer-stable
+else
+    run_composer update
+fi
+
+run_composer show | grep -E '^(doctrine/(orm|dbal|doctrine-bundle)|symfony/(framework-bundle|var-exporter)|phpunit/phpunit) '
+"php$php_version" vendor/bin/phpunit
