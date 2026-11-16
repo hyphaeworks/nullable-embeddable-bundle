@@ -1,0 +1,86 @@
+<?php
+
+declare(strict_types=1);
+
+namespace Hyphaeworks\NullableEmbeddableBundle\Tests\Functional;
+
+use Doctrine\ORM\EntityManagerInterface;
+use Doctrine\ORM\Tools\SchemaTool;
+use PHPUnit\Framework\Attributes\Test;
+use Symfony\Bundle\FrameworkBundle\Test\KernelTestCase;
+use Hyphaeworks\NullableEmbeddableBundle\Tests\Functional\Entity\AttributesTestEntity;
+use Hyphaeworks\NullableEmbeddableBundle\Tests\Functional\Entity\EmailAddress;
+use Hyphaeworks\NullableEmbeddableBundle\Tests\Functional\XmlEntity\XmlTestEntity;
+
+final class NullableEmbeddableTest extends KernelTestCase
+{
+    private EntityManagerInterface $entityManager;
+
+    #[\Override]
+    protected static function getKernelClass(): string
+    {
+        return TestKernel::class;
+    }
+
+    #[\Override]
+    protected function setUp(): void
+    {
+        /** @var EntityManagerInterface $entityManager */
+        $entityManager = self::getContainer()->get('doctrine.orm.entity_manager');
+        $this->entityManager = $entityManager;
+        (new SchemaTool($entityManager))->createSchema($entityManager->getMetadataFactory()->getAllMetadata());
+    }
+
+    #[Test]
+    public function emptyEmbeddableIsLoadedAsNull(): void
+    {
+        $entity = new AttributesTestEntity();
+        $entity->setEmailAddress(new EmailAddress(address: null));
+
+        $reloaded = $this->persistAndReload($entity);
+
+        self::assertNull($reloaded->getEmailAddress());
+    }
+
+    #[Test]
+    public function embeddableWithValueIsKept(): void
+    {
+        $entity = new AttributesTestEntity();
+        $entity->setEmailAddress(new EmailAddress(address: 'someone@example.com'));
+
+        $reloaded = $this->persistAndReload($entity);
+
+        self::assertEquals(new EmailAddress(address: 'someone@example.com'), $reloaded->getEmailAddress());
+    }
+
+    #[Test]
+    public function emptyEmbeddableOfXmlMappedEntityWithUntypedMarkedPropertyIsLoadedAsNull(): void
+    {
+        $entity = new XmlTestEntity();
+        $entity->setEmailAddress(new EmailAddress(address: null));
+
+        $reloaded = $this->persistAndReload($entity);
+
+        self::assertNull($reloaded->getEmailAddress());
+    }
+
+    /**
+     * @template T of object
+     *
+     * @param T $entity
+     *
+     * @return T
+     */
+    private function persistAndReload(object $entity): object
+    {
+        $this->entityManager->persist($entity);
+        $this->entityManager->flush();
+        $identifier = $this->entityManager->getUnitOfWork()->getSingleIdentifierValue($entity);
+        $this->entityManager->clear();
+
+        $reloaded = $this->entityManager->find($entity::class, $identifier);
+        self::assertNotNull($reloaded);
+
+        return $reloaded;
+    }
+}

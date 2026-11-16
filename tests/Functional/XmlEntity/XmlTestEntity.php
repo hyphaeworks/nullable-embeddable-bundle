@@ -2,7 +2,7 @@
 
 declare(strict_types=1);
 
-namespace Hyphaeworks\NullableEmbeddableBundle\Tests\Integration\Entity;
+namespace Hyphaeworks\NullableEmbeddableBundle\Tests\Functional\XmlEntity;
 
 use Hyphaeworks\NullableEmbeddableBundle\Attribute\ContainsNullableEmbeddable;
 use Hyphaeworks\NullableEmbeddableBundle\Attribute\NullableEmbedded;

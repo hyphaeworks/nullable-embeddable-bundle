@@ -13,11 +13,16 @@
         </ignoreFiles>
     </projectFiles>
     <issueHandlers>
-        <!-- The replacement exists only from Symfony 8.1 -->
+        <!-- Symfony 8.1 moved and renamed the bundle API; older versions need the old one -->
         <DeprecatedInterface>
             <errorLevel type="suppress">
                 <file name="src/NullableEmbeddableBundle.php"/>
             </errorLevel>
         </DeprecatedInterface>
+        <ParamNameMismatch>
+            <errorLevel type="suppress">
+                <file name="src/NullableEmbeddableBundle.php"/>
+            </errorLevel>
+        </ParamNameMismatch>
     </issueHandlers>
 </psalm>

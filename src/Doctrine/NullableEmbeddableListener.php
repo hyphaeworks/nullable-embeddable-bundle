@@ -4,30 +4,13 @@ declare(strict_types=1);
 
 namespace Hyphaeworks\NullableEmbeddableBundle\Doctrine;
 
-use Doctrine\Bundle\DoctrineBundle\Attribute\AsDoctrineListener;
-use Doctrine\Common\EventSubscriber;
 use Doctrine\ORM\Event\PostLoadEventArgs;
-use Doctrine\ORM\Events;
 use Doctrine\ORM\Mapping\EmbeddedClassMapping;
 use Hyphaeworks\NullableEmbeddableBundle\Attribute\ContainsNullableEmbeddable;
 use Hyphaeworks\NullableEmbeddableBundle\Attribute\NullableEmbedded;
 
-#[AsDoctrineListener(event: Events::postLoad)]
-final class NullableEmbeddableSubscriber implements EventSubscriber
+final class NullableEmbeddableListener
 {
-    /**
-     * @return array<int, string>
-     *
-     * @psalm-return array{0: 'postLoad'}
-     */
-    #[\Override]
-    public function getSubscribedEvents(): array
-    {
-        return [
-            Events::postLoad,
-        ];
-    }
-
     /**
      * @throws \ReflectionException
      */
