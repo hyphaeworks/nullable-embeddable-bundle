@@ -1,0 +1,145 @@
+#!/usr/bin/env php
+<?php
+
+declare(strict_types=1);
+
+namespace Hyphaeworks\NullableEmbeddableBundle\Benchmark;
+
+use Doctrine\DBAL\DriverManager;
+use Doctrine\ORM\EntityManager;
+use Doctrine\ORM\Events;
+use Doctrine\ORM\Mapping as ORM;
+use Doctrine\ORM\ORMSetup;
+use Doctrine\ORM\Tools\SchemaTool;
+use Hyphaeworks\NullableEmbeddableBundle\Attribute\ContainsNullableEmbeddable;
+use Hyphaeworks\NullableEmbeddableBundle\Doctrine\NullableEmbeddableListener;
+
+require __DIR__.'/../vendor/autoload.php';
+
+#[ORM\Embeddable]
+final class Money
+{
+    public function __construct(
+        #[ORM\Column(nullable: true)] public ?int $amount = null,
+        #[ORM\Column(nullable: true)] public ?string $currency = null,
+    ) {
+    }
+}
+
+#[ORM\Entity]
+class Unmarked
+{
+    #[ORM\Id, ORM\GeneratedValue, ORM\Column] public ?int $id = null;
+    #[ORM\Column] public string $name = 'x';
+    #[ORM\Embedded(class: Money::class)] public ?Money $price = null;
+}
+
+#[ORM\Entity, ContainsNullableEmbeddable]
+class Marked
+{
+    #[ORM\Id, ORM\GeneratedValue, ORM\Column] public ?int $id = null;
+    #[ORM\Column] public string $name = 'x';
+    #[ORM\Embedded(class: Money::class)] public ?Money $price = null;
+    #[ORM\Embedded(class: Money::class)] public ?Money $discount = null;
+}
+
+const VARIANTS = ['without bundle', 'with bundle'];
+const ROUNDS = 11;
+
+$rows = (int) ($argv[1] ?? 30000);
+$processes = (int) ($argv[2] ?? 5);
+
+if (isset($argv[3])) {
+    echo implode(';', measure($rows, $argv[3]));
+    exit;
+}
+
+$timings = [];
+for ($process = 0; $process < $processes; ++$process) {
+    foreach (VARIANTS as $variant) {
+        $command = sprintf(
+            '%s -d opcache.enable_cli=1 -d opcache.jit=tracing -d opcache.jit_buffer_size=64M %s %d 0 %s',
+            escapeshellarg(\PHP_BINARY),
+            escapeshellarg(__FILE__),
+            $rows,
+            escapeshellarg($variant),
+        );
+        $timings[$variant][] = array_map('floatval', explode(';', (string) shell_exec($command)));
+    }
+}
+
+printf("PHP %s, %d rows, findAll() + clear(), median of %d processes × %d rounds\n\n", \PHP_VERSION, $rows, $processes, ROUNDS);
+printf("%-16s %26s %26s\n", '', 'entity without marker', 'marked, 2 embeddables');
+$baseline = medians($timings[VARIANTS[0]]);
+foreach (VARIANTS as $variant) {
+    $cells = array_map(
+        static fn (float $time, float $base): string => sprintf('%7.1fms %+6.1f%% %6.2fµs', $time, ($time / $base - 1) * 100, ($time - $base) * 1000 / $rows),
+        medians($timings[$variant]),
+        $baseline,
+    );
+    printf("%-16s %26s %26s\n", $variant, ...$cells);
+}
+
+/**
+ * @param list<list<float>> $timings
+ *
+ * @return list<float>
+ */
+function medians(array $timings): array
+{
+    return array_map(static fn (int $column): float => median(array_column($timings, $column)), [0, 1]);
+}
+
+/**
+ * @param list<float> $values
+ */
+function median(array $values): float
+{
+    sort($values);
+
+    return $values[intdiv(count($values), 2)];
+}
+
+/**
+ * @return list<float>
+ */
+function measure(int $rows, string $variant): array
+{
+    $config = ORMSetup::createAttributeMetadataConfiguration(paths: [], isDevMode: false);
+    if (\PHP_VERSION_ID >= 80400 && method_exists($config, 'enableNativeLazyObjects')) {
+        $config->enableNativeLazyObjects(true);
+    }
+    $connection = DriverManager::getConnection(['driver' => 'pdo_sqlite', 'memory' => true], $config);
+    $entityManager = new EntityManager($connection, $config);
+    (new SchemaTool($entityManager))->createSchema(array_map($entityManager->getClassMetadata(...), [Unmarked::class, Marked::class]));
+
+    $connection->beginTransaction();
+    for ($row = 0; $row < $rows; ++$row) {
+        $empty = 0 === $row % 2;
+        $connection->insert('Unmarked', ['name' => 'x', 'price_amount' => null, 'price_currency' => null]);
+        $connection->insert('Marked', [
+            'name' => 'x',
+            'price_amount' => $empty ? null : 100,
+            'price_currency' => $empty ? null : 'EUR',
+            'discount_amount' => $empty ? null : 5,
+            'discount_currency' => $empty ? null : 'EUR',
+        ]);
+    }
+    $connection->commit();
+
+    if ('with bundle' === $variant) {
+        $entityManager->getEventManager()->addEventListener(Events::postLoad, new NullableEmbeddableListener());
+    }
+
+    return array_map(static function (string $class) use ($entityManager): float {
+        $times = [];
+        for ($round = 0; $round <= ROUNDS; ++$round) {
+            $start = hrtime(true);
+            $entityManager->getRepository($class)->findAll();
+            $entityManager->clear();
+            $times[] = (hrtime(true) - $start) / 1e6;
+        }
+
+        return median(array_slice($times, 1));
+    }, [Unmarked::class, Marked::class]);
+}
