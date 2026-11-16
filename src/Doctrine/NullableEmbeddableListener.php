@@ -91,11 +91,42 @@ final class NullableEmbeddableListener
             $nullableEmbeddedProperties[] = new NullableEmbeddedProperty(
                 $ownerPath,
                 $property,
-                $this->embeddableClass($metadata, $path)->getProperties(),
+                $this->columnPaths($metadata, $path),
             );
         }
 
         return $nullableEmbeddedProperties;
+    }
+
+    /**
+     * @param ClassMetadata<object> $metadata
+     *
+     * @return list<list<\ReflectionProperty>>
+     *
+     * @throws \ReflectionException
+     */
+    private function columnPaths(ClassMetadata $metadata, string $path): array
+    {
+        $columnPaths = [];
+        foreach (array_keys($metadata->fieldMappings) as $field) {
+            if (!str_starts_with($field, $path.'.')) {
+                continue;
+            }
+
+            $class = $this->embeddableClass($metadata, $path);
+            $segmentPath = $path;
+            $columnPath = [];
+            foreach (explode('.', substr($field, \strlen($path) + 1)) as $segment) {
+                $columnPath[] = $this->property($class, $segment);
+                $segmentPath .= '.'.$segment;
+                if (isset($metadata->embeddedClasses[$segmentPath])) {
+                    $class = $this->embeddableClass($metadata, $segmentPath);
+                }
+            }
+            $columnPaths[] = $columnPath;
+        }
+
+        return $columnPaths;
     }
 
     /**

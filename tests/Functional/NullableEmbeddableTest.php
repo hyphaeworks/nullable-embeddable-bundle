@@ -9,12 +9,16 @@ use Doctrine\ORM\Tools\SchemaTool;
 use Hyphaeworks\NullableEmbeddableBundle\Exception\ReadonlyEmbeddedPropertyException;
 use Hyphaeworks\NullableEmbeddableBundle\Tests\Functional\Entity\AttributesTestEntity;
 use Hyphaeworks\NullableEmbeddableBundle\Tests\Functional\Entity\ChildWithOwnEntityListener;
+use Hyphaeworks\NullableEmbeddableBundle\Tests\Functional\Entity\ContactCard;
 use Hyphaeworks\NullableEmbeddableBundle\Tests\Functional\Entity\EmailAddress;
+use Hyphaeworks\NullableEmbeddableBundle\Tests\Functional\Entity\EmailAddressWithUnmappedState;
 use Hyphaeworks\NullableEmbeddableBundle\Tests\Functional\Entity\EntityExtendingMarkedMappedSuperclass;
+use Hyphaeworks\NullableEmbeddableBundle\Tests\Functional\Entity\EntityWithContactCard;
 use Hyphaeworks\NullableEmbeddableBundle\Tests\Functional\Entity\EntityWithNestedEmbeddable;
 use Hyphaeworks\NullableEmbeddableBundle\Tests\Functional\Entity\EntityWithReadonlyEmbedded;
 use Hyphaeworks\NullableEmbeddableBundle\Tests\Functional\Entity\EntityWithReadonlyNestedEmbedded;
 use Hyphaeworks\NullableEmbeddableBundle\Tests\Functional\Entity\EntityWithStrictEmailAddress;
+use Hyphaeworks\NullableEmbeddableBundle\Tests\Functional\Entity\EntityWithUnmappedEmbeddableState;
 use Hyphaeworks\NullableEmbeddableBundle\Tests\Functional\Entity\MarkedChildEntity;
 use Hyphaeworks\NullableEmbeddableBundle\Tests\Functional\Entity\Owner;
 use Hyphaeworks\NullableEmbeddableBundle\Tests\Functional\Entity\Price;
@@ -153,6 +157,76 @@ final class NullableEmbeddableTest extends KernelTestCase
         $reloaded = $this->persistAndReload(new EntityWithNestedEmbeddable(new Price(amount: 100)));
 
         self::assertEquals(new Price(amount: 100), $reloaded->getPrice());
+    }
+
+    #[Test]
+    public function unmappedEmbeddablePropertiesDoNotCountAsValues(): void
+    {
+        $reloaded = $this->persistAndReload(new EntityWithUnmappedEmbeddableState(new EmailAddressWithUnmappedState()));
+
+        self::assertNull($reloaded->getEmailAddress());
+    }
+
+    #[Test]
+    public function embeddableHoldingOnlyAnEmptyNonNullableEmbeddableIsLoadedAsNull(): void
+    {
+        $reloaded = $this->persistAndReload(new EntityWithContactCard(new ContactCard()));
+
+        self::assertNull($reloaded->getContactCard());
+    }
+
+    #[Test]
+    public function zeroAndEmptyStringAreValues(): void
+    {
+        $withZero = $this->persistAndReload(new EntityWithNestedEmbeddable(new Price(amount: 0)));
+        $entity = new AttributesTestEntity();
+        $entity->setEmailAddress(new EmailAddress(address: ''));
+        $withEmptyString = $this->persistAndReload($entity);
+
+        self::assertEquals(new Price(amount: 0), $withZero->getPrice());
+        self::assertEquals(new EmailAddress(address: ''), $withEmptyString->getEmailAddress());
+    }
+
+    #[Test]
+    public function refreshedEntityWhoseColumnsWereClearedHasNullEmbeddable(): void
+    {
+        $entity = new EntityWithNestedEmbeddable(new Price(amount: 100));
+        $this->entityManager->persist($entity);
+        $this->entityManager->flush();
+        $this->entityManager
+            ->createQuery('UPDATE '.EntityWithNestedEmbeddable::class.' entity SET entity.price.amount = NULL')
+            ->execute();
+
+        $this->entityManager->refresh($entity);
+
+        self::assertNull($entity->getPrice());
+    }
+
+    #[Test]
+    public function emptyEmbeddableOfIteratedQueryResultIsLoadedAsNull(): void
+    {
+        $entity = new AttributesTestEntity();
+        $entity->setEmailAddress(new EmailAddress(address: null));
+        $this->persistAndReload($entity);
+        $this->entityManager->clear();
+
+        $query = $this->entityManager->createQuery('SELECT entity FROM '.AttributesTestEntity::class.' entity');
+        foreach ($query->toIterable() as $loaded) {
+            self::assertInstanceOf(AttributesTestEntity::class, $loaded);
+            self::assertNull($loaded->getEmailAddress());
+        }
+    }
+
+    #[Test]
+    public function valueAssignedToNulledEmbeddableIsSaved(): void
+    {
+        $entity = new AttributesTestEntity();
+        $entity->setEmailAddress(new EmailAddress(address: null));
+        $reloaded = $this->persistAndReload($entity);
+
+        $reloaded->setEmailAddress(new EmailAddress(address: 'someone@example.com'));
+
+        self::assertEquals(new EmailAddress(address: 'someone@example.com'), $this->persistAndReload($reloaded)->getEmailAddress());
     }
 
     #[Test]

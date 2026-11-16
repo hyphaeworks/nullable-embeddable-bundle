@@ -10,13 +10,13 @@ namespace Hyphaeworks\NullableEmbeddableBundle\Doctrine;
 final readonly class NullableEmbeddedProperty
 {
     /**
-     * @param list<\ReflectionProperty> $ownerPath
-     * @param list<\ReflectionProperty> $embeddableProperties
+     * @param list<\ReflectionProperty>       $ownerPath
+     * @param list<list<\ReflectionProperty>> $columnPaths
      */
     public function __construct(
         private array $ownerPath,
         private \ReflectionProperty $property,
-        private array $embeddableProperties,
+        private array $columnPaths,
     ) {
     }
 
@@ -37,12 +37,33 @@ final readonly class NullableEmbeddedProperty
             return;
         }
 
-        foreach ($this->embeddableProperties as $embeddableProperty) {
-            if ($embeddableProperty->isInitialized($embeddable) && null !== $embeddableProperty->getValue($embeddable)) {
+        foreach ($this->columnPaths as $columnPath) {
+            if ($this->hasValue($embeddable, $columnPath)) {
                 return;
             }
         }
 
         $this->property->setValue($owner, null);
+    }
+
+    /**
+     * @param list<\ReflectionProperty> $columnPath
+     */
+    private function hasValue(object $embeddable, array $columnPath): bool
+    {
+        $column = array_pop($columnPath);
+        $owner = $embeddable;
+        foreach ($columnPath as $property) {
+            if (!$property->isInitialized($owner)) {
+                return false;
+            }
+            /** @var object|null $owner */
+            $owner = $property->getValue($owner);
+            if (null === $owner) {
+                return false;
+            }
+        }
+
+        return null !== $column && $column->isInitialized($owner) && null !== $column->getValue($owner);
     }
 }

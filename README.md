@@ -56,7 +56,8 @@ With XML mapping, the marker attribute still goes on the entity class.
 
 ## Rules
 
-- An embeddable is empty when every property is `null` or uninitialized.
+- An embeddable is empty when every mapped column in it is `null` or uninitialized.
+  Unmapped and static properties are ignored; `0`, `''` and `false` are values.
 - Nested embeddables are supported: an outer embeddable that only holds an empty inner one becomes `null` too.
 - A nullable embedded property must not be `readonly`, because the bundle has to set it to `null` after Doctrine.
   Loading such an entity throws a `ReadonlyEmbeddedPropertyException`. The properties inside the embeddable may be `readonly`.
