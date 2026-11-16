@@ -12,6 +12,9 @@ use Symfony\Component\HttpKernel\Bundle\AbstractBundle;
 
 final class NullableEmbeddableBundle extends AbstractBundle
 {
+    /**
+     * @param array<mixed> $config
+     */
     #[\Override]
     public function loadExtension(array $config, ContainerConfigurator $container, ContainerBuilder $builder): void
     {

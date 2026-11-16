@@ -33,12 +33,6 @@ final class NullableEmbeddableTest extends KernelTestCase
     private EntityManagerInterface $entityManager;
 
     #[\Override]
-    protected static function getKernelClass(): string
-    {
-        return TestKernel::class;
-    }
-
-    #[\Override]
     protected function setUp(): void
     {
         /** @var EntityManagerInterface $entityManager */
@@ -211,10 +205,10 @@ final class NullableEmbeddableTest extends KernelTestCase
         $this->entityManager->clear();
 
         $query = $this->entityManager->createQuery('SELECT entity FROM '.AttributesTestEntity::class.' entity');
-        foreach ($query->toIterable() as $loaded) {
-            self::assertInstanceOf(AttributesTestEntity::class, $loaded);
-            self::assertNull($loaded->getEmailAddress());
-        }
+        $loaded = [...$query->toIterable()];
+
+        self::assertCount(1, $loaded);
+        self::assertNull($loaded[0]->getEmailAddress());
     }
 
     #[Test]
@@ -266,6 +260,12 @@ final class NullableEmbeddableTest extends KernelTestCase
         $this->expectExceptionMessage(PriceWithReadonlyContact::class.'::$contact is readonly');
 
         $this->persistAndReload(new EntityWithReadonlyNestedEmbedded(new PriceWithReadonlyContact(amount: 100)));
+    }
+
+    #[\Override]
+    protected static function getKernelClass(): string
+    {
+        return TestKernel::class;
     }
 
     /**

@@ -1,0 +1,14 @@
+parameters:
+    level: max
+    paths:
+        - src
+        - tests
+        - bin/benchmark
+    doctrine:
+        objectManagerLoader: tests/object-manager.php
+    ignoreErrors:
+        # ORM 2 maps embeddables as arrays; ORM 3 as EmbeddedClassMapping
+        -
+            identifier: instanceof.alwaysTrue
+            path: src/Doctrine/NullableEmbeddableListener.php
+            count: 1

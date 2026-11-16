@@ -20,8 +20,10 @@ require __DIR__.'/../vendor/autoload.php';
 final class Money
 {
     public function __construct(
-        #[ORM\Column(nullable: true)] public ?int $amount = null,
-        #[ORM\Column(nullable: true)] public ?string $currency = null,
+        #[ORM\Column(nullable: true)]
+        public ?int $amount = null,
+        #[ORM\Column(nullable: true)]
+        public ?string $currency = null,
     ) {
     }
 }
@@ -54,10 +56,10 @@ if (isset($argv[3])) {
     exit;
 }
 
-$timings = [];
+$timings = array_fill_keys(VARIANTS, []);
 for ($process = 0; $process < $processes; ++$process) {
     foreach (VARIANTS as $variant) {
-        $command = sprintf(
+        $command = \sprintf(
             '%s -d opcache.enable_cli=1 -d opcache.jit=tracing -d opcache.jit_buffer_size=64M %s %d 0 %s',
             escapeshellarg(\PHP_BINARY),
             escapeshellarg(__FILE__),
@@ -73,7 +75,7 @@ printf("%-16s %26s %26s\n", '', 'entity without marker', 'marked, 2 embeddables'
 $baseline = medians($timings[VARIANTS[0]]);
 foreach (VARIANTS as $variant) {
     $cells = array_map(
-        static fn (float $time, float $base): string => sprintf('%7.1fms %+6.1f%% %6.2fµs', $time, ($time / $base - 1) * 100, ($time - $base) * 1000 / $rows),
+        static fn (float $time, float $base): string => \sprintf('%7.1fms %+6.1f%% %6.2fµs', $time, ($time / $base - 1) * 100, ($time - $base) * 1000 / $rows),
         medians($timings[$variant]),
         $baseline,
     );
@@ -97,7 +99,7 @@ function median(array $values): float
 {
     sort($values);
 
-    return $values[intdiv(count($values), 2)];
+    return $values[intdiv(\count($values), 2)];
 }
 
 /**
@@ -106,7 +108,7 @@ function median(array $values): float
 function measure(int $rows, string $variant): array
 {
     $config = ORMSetup::createAttributeMetadataConfiguration(paths: [], isDevMode: false);
-    if (\PHP_VERSION_ID >= 80400 && method_exists($config, 'enableNativeLazyObjects')) {
+    if (\PHP_VERSION_ID >= 80400) {
         $config->enableNativeLazyObjects(true);
     }
     $connection = DriverManager::getConnection(['driver' => 'pdo_sqlite', 'memory' => true], $config);
@@ -141,6 +143,6 @@ function measure(int $rows, string $variant): array
             $times[] = (hrtime(true) - $start) / 1e6;
         }
 
-        return median(array_slice($times, 1));
+        return median(\array_slice($times, 1));
     }, [Unmarked::class, Marked::class]);
 }

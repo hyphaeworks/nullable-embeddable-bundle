@@ -27,7 +27,7 @@ jobs:
 
       - run: composer cs:check
 
-      - run: composer psalm
+      - run: composer phpstan
 
   tests:
     name: PHP ${{ matrix.php }} · Symfony ${{ matrix.symfony }} · ORM ${{ matrix.orm }} · ${{ matrix.dependencies }}
@@ -58,7 +58,7 @@ jobs:
           tools: flex
 
       - run: |
-          composer remove --dev --no-update vimeo/psalm friendsofphp/php-cs-fixer
+          composer remove --dev --no-update friendsofphp/php-cs-fixer phpstan/phpstan phpstan/extension-installer phpstan/phpstan-doctrine phpstan/phpstan-phpunit phpstan/phpstan-strict-rules
           composer require --no-update "doctrine/orm:${{ matrix.orm }}"
 
       - uses: ramsey/composer-install@v4

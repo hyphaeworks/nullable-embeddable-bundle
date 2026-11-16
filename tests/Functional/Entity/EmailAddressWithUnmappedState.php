@@ -11,7 +11,9 @@ final class EmailAddressWithUnmappedState
 {
     public static string $label = 'email';
 
-    /** @var array<string, string> */
+    /**
+     * @var array<string, string>
+     */
     public array $cache = [];
 
     public function __construct(

@@ -15,7 +15,9 @@ use Hyphaeworks\NullableEmbeddableBundle\Exception\ReadonlyEmbeddedPropertyExcep
 
 final class NullableEmbeddableListener
 {
-    /** @var array<string, list<NullableEmbeddedProperty>> */
+    /**
+     * @var array<string, list<NullableEmbeddedProperty>>
+     */
     private array $nullableEmbeddedPropertiesByClass = [];
 
     public function loadClassMetadata(LoadClassMetadataEventArgs $args): void
@@ -44,7 +46,7 @@ final class NullableEmbeddableListener
     }
 
     /**
-     * @param \ReflectionClass<object> $class
+     * @param \ReflectionClass<covariant object> $class
      */
     private function isMarked(\ReflectionClass $class): bool
     {
@@ -99,6 +101,46 @@ final class NullableEmbeddableListener
     }
 
     /**
+     * @param \ReflectionClass<covariant object> $class
+     *
+     * @throws \ReflectionException
+     */
+    private function property(\ReflectionClass $class, string $name): \ReflectionProperty
+    {
+        while (!$class->hasProperty($name) && false !== $parentClass = $class->getParentClass()) {
+            $class = $parentClass;
+        }
+
+        return $class->getProperty($name);
+    }
+
+    /**
+     * @param ClassMetadata<object> $metadata
+     *
+     * @return \ReflectionClass<object>
+     *
+     * @throws \ReflectionException
+     */
+    private function embeddableClass(ClassMetadata $metadata, string $path): \ReflectionClass
+    {
+        $mapping = $metadata->embeddedClasses[$path];
+        $className = $mapping instanceof EmbeddedClassMapping ? $mapping->class : $mapping['class'];
+
+        return new \ReflectionClass($className);
+    }
+
+    private function isNullable(\ReflectionProperty $property): bool
+    {
+        $type = $property->getType();
+
+        if (null === $type) {
+            return [] !== $property->getAttributes(NullableEmbedded::class);
+        }
+
+        return $type->allowsNull();
+    }
+
+    /**
      * @param ClassMetadata<object> $metadata
      *
      * @return list<list<\ReflectionProperty>>
@@ -127,50 +169,5 @@ final class NullableEmbeddableListener
         }
 
         return $columnPaths;
-    }
-
-    /**
-     * @param \ReflectionClass<object> $class
-     *
-     * @throws \ReflectionException
-     */
-    private function property(\ReflectionClass $class, string $name): \ReflectionProperty
-    {
-        while (!$class->hasProperty($name) && false !== $parentClass = $class->getParentClass()) {
-            $class = $parentClass;
-        }
-
-        return $class->getProperty($name);
-    }
-
-    /**
-     * @param ClassMetadata<object> $metadata
-     *
-     * @return \ReflectionClass<object>
-     *
-     * @throws \ReflectionException
-     */
-    private function embeddableClass(ClassMetadata $metadata, string $path): \ReflectionClass
-    {
-        $mapping = $metadata->embeddedClasses[$path];
-        /**
-         * @psalm-suppress RedundantConditionGivenDocblockType ORM 2 maps embeddables as arrays
-         *
-         * @var class-string $className
-         */
-        $className = $mapping instanceof EmbeddedClassMapping ? $mapping->class : $mapping['class'];
-
-        return new \ReflectionClass($className);
-    }
-
-    private function isNullable(\ReflectionProperty $property): bool
-    {
-        $type = $property->getType();
-
-        if (null === $type) {
-            return [] !== $property->getAttributes(NullableEmbedded::class);
-        }
-
-        return $type->allowsNull();
     }
 }

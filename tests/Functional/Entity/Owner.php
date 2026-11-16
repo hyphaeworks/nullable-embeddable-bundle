@@ -16,6 +16,7 @@ class Owner
 
     public function __construct(
         #[ORM\ManyToOne(cascade: ['persist'])]
+        #[ORM\JoinColumn(nullable: false)]
         private AttributesTestEntity $owned,
     ) {
     }

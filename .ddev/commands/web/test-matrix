@@ -25,7 +25,7 @@ run_composer global config allow-plugins.symfony/flex true
 run_composer global require --quiet symfony/flex
 export SYMFONY_REQUIRE="$symfony_version.*"
 
-run_composer remove --dev --no-update vimeo/psalm friendsofphp/php-cs-fixer
+run_composer remove --dev --no-update friendsofphp/php-cs-fixer phpstan/phpstan phpstan/extension-installer phpstan/phpstan-doctrine phpstan/phpstan-phpunit phpstan/phpstan-strict-rules
 run_composer require --no-update "doctrine/orm:$orm_constraint"
 if [ "$dependencies" = lowest ]; then
     run_composer update --prefer-lowest --prefer-stable
