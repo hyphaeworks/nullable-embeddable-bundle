@@ -17,24 +17,26 @@ final class NullableEmbeddableListener
     public function postLoad(PostLoadEventArgs $args): void
     {
         $entity = $args->getObject();
-        if (!(new \ReflectionClass($entity))->getAttributes(ContainsNullableEmbeddable::class)) {
+        $metadata = $args->getObjectManager()->getClassMetadata($entity::class);
+        $entityClass = $metadata->getReflectionClass();
+        if (!$entityClass->getAttributes(ContainsNullableEmbeddable::class)) {
             return;
         }
 
-        $metadata = $args->getObjectManager()->getClassMetadata($entity::class);
-        $this->processEmbeddables($entity, $metadata->embeddedClasses);
+        $this->processEmbeddables($entity, $entityClass, $metadata->embeddedClasses);
     }
 
     /**
+     * @param \ReflectionClass<object>            $entityClass
      * @param array<string, EmbeddedClassMapping> $embeddedClasses
      *
      * @throws \ReflectionException
      */
-    private function processEmbeddables(object $entity, array $embeddedClasses): void
+    private function processEmbeddables(object $entity, \ReflectionClass $entityClass, array $embeddedClasses): void
     {
         /** @var string $fieldName */
         foreach (array_keys($embeddedClasses) as $fieldName) {
-            $property = new \ReflectionProperty($entity, $fieldName);
+            $property = $entityClass->getProperty($fieldName);
 
             if (!$this->isNullable($property)) {
                 continue;
