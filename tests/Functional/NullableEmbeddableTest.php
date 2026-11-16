@@ -6,8 +6,6 @@ namespace Hyphaeworks\NullableEmbeddableBundle\Tests\Functional;
 
 use Doctrine\ORM\EntityManagerInterface;
 use Doctrine\ORM\Tools\SchemaTool;
-use PHPUnit\Framework\Attributes\Test;
-use Symfony\Bundle\FrameworkBundle\Test\KernelTestCase;
 use Hyphaeworks\NullableEmbeddableBundle\Exception\ReadonlyEmbeddedPropertyException;
 use Hyphaeworks\NullableEmbeddableBundle\Tests\Functional\Entity\AttributesTestEntity;
 use Hyphaeworks\NullableEmbeddableBundle\Tests\Functional\Entity\EmailAddress;
@@ -19,6 +17,8 @@ use Hyphaeworks\NullableEmbeddableBundle\Tests\Functional\Entity\Owner;
 use Hyphaeworks\NullableEmbeddableBundle\Tests\Functional\Entity\Price;
 use Hyphaeworks\NullableEmbeddableBundle\Tests\Functional\Entity\PriceWithReadonlyContact;
 use Hyphaeworks\NullableEmbeddableBundle\Tests\Functional\XmlEntity\XmlTestEntity;
+use PHPUnit\Framework\Attributes\Test;
+use Symfony\Bundle\FrameworkBundle\Test\KernelTestCase;
 
 final class NullableEmbeddableTest extends KernelTestCase
 {

@@ -5,10 +5,10 @@ declare(strict_types=1);
 namespace Hyphaeworks\NullableEmbeddableBundle;
 
 use Doctrine\ORM\Events;
+use Hyphaeworks\NullableEmbeddableBundle\Doctrine\NullableEmbeddableListener;
 use Symfony\Component\DependencyInjection\ContainerBuilder;
 use Symfony\Component\DependencyInjection\Loader\Configurator\ContainerConfigurator;
 use Symfony\Component\HttpKernel\Bundle\AbstractBundle;
-use Hyphaeworks\NullableEmbeddableBundle\Doctrine\NullableEmbeddableListener;
 
 final class NullableEmbeddableBundle extends AbstractBundle
 {

@@ -2,51 +2,36 @@
 
 [![CI](https://github.com/hyphaeworks/nullable-embeddable-bundle/actions/workflows/ci.yml/badge.svg)](https://github.com/hyphaeworks/nullable-embeddable-bundle/actions/workflows/ci.yml)
 
-A [Symfony bundle](https://symfony.com/doc/current/bundles.html) that provides support for nullable [_Doctrine Embeddables_](https://www.doctrine-project.org/projects/doctrine-orm/en/3.3/tutorials/embeddables.html). It allows embeddable objects to become `null` when all their properties are `null`, providing a cleaner way to handle optional embedded values.
+A [Symfony bundle](https://symfony.com/doc/current/bundles.html) for nullable [Doctrine embeddables](https://www.doctrine-project.org/projects/doctrine-orm/en/current/tutorials/embeddables.html).
+Doctrine always creates an embeddable object on load, even when all its columns are `NULL`.
+This bundle sets such an empty embeddable to `null` instead.
 
 ## Installation
-
-Install the bundle using Composer:
 
 ```bash
 composer require hyphaeworks/nullable-embeddable-bundle
 ```
 
-The bundle supports:
-- PHP 8.1 or higher
-- Symfony 6.4 or 7.0 or higher
-- Doctrine ORM 2.14 or 3.0 or higher
+Register the bundle in `config/bundles.php` if Symfony Flex did not do it for you. No configuration is needed.
+
+```php
+Hyphaeworks\NullableEmbeddableBundle\NullableEmbeddableBundle::class => ['all' => true],
+```
+
+| Package                  | Versions      |
+|--------------------------|---------------|
+| PHP                      | 8.2 to 8.5    |
+| Symfony                  | 6.4, 7.4, 8.x |
+| doctrine/orm             | 2.17+, 3.x    |
+| doctrine/doctrine-bundle | 2.12+, 3.x    |
 
 ## Usage
 
-### 1. Create your embeddable class
-
-Create a standard Doctrine embeddable class:
+Mark the entity with `#[ContainsNullableEmbeddable]` and give the embedded property a nullable type:
 
 ```php
 use Doctrine\ORM\Mapping as ORM;
-
-#[ORM\Embeddable]
-final class EmailAddress
-{
-    #[ORM\Column(type: 'string', length: 255, nullable: true)]
-    public readonly ?string $address = null;
-
-    // ... constructor and methods
-}
-```
-
-### 2. Set up the containing entity
-
-First, add the `#[ContainsNullableEmbeddable]` attribute to your entity. Then, you have two options to make an embeddable property nullable:
-
-#### Option 1: Using PHP type hints (recommended)
-
-Simply declare the embeddable property with a nullable type hint (`?` or `null` type):
-
-```php
 use Hyphaeworks\NullableEmbeddableBundle\Attribute\ContainsNullableEmbeddable;
-use Doctrine\ORM\Mapping as ORM;
 
 #[ORM\Entity]
 #[ContainsNullableEmbeddable]
@@ -54,99 +39,44 @@ class User
 {
     #[ORM\Embedded(class: EmailAddress::class)]
     private ?EmailAddress $emailAddress = null;
-
-    // ... constructor and methods
 }
 ```
 
-#### Option 2: Using the custom `NullableEmbedded` attribute
-
-For properties without type hints or when you need to explicitly mark an embeddable as nullable:
+An untyped property needs the `#[NullableEmbedded]` attribute instead:
 
 ```php
-use Hyphaeworks\NullableEmbeddableBundle\Attribute\ContainsNullableEmbeddable;
-use Hyphaeworks\NullableEmbeddableBundle\Attribute\NullableEmbedded;
-use Doctrine\ORM\Mapping as ORM;
-
-#[ORM\Entity]
-#[ContainsNullableEmbeddable]
-class User
-{
-    #[ORM\Embedded(class: EmailAddress::class)]
-    #[NullableEmbedded]
-    private $emailAddress = null;
-
-    // ... constructor and methods
-}
+#[ORM\Embedded(class: EmailAddress::class)]
+#[NullableEmbedded]
+private $emailAddress;
 ```
 
-You can choose either approach based on your needs. Using PHP type hints is recommended as it provides better type safety and IDE support.
+Embedded properties with a non-nullable type are left alone.
+With XML mapping, the marker attribute still goes on the entity class.
 
-### 3. Configuration
+## Rules
 
-The bundle will automatically register its Doctrine event subscriber. No additional configuration is required.
+- An embeddable is empty when every property is `null` or uninitialized.
+- Nested embeddables are supported: an outer embeddable that only holds an empty inner one becomes `null` too.
+- A nullable embedded property must not be `readonly`, because the bundle has to set it to `null` after Doctrine.
+  Loading such an entity throws a `ReadonlyEmbeddedPropertyException`. The properties inside the embeddable may be `readonly`.
+- Single-column value objects (an email address, a currency code) are often better served by a
+  [custom DBAL type](https://www.doctrine-project.org/projects/doctrine-orm/en/current/cookbook/custom-mapping-types.html).
 
-## How It Works
+## Metadata cache
 
-The bundle uses a [Doctrine event subscriber](https://www.doctrine-project.org/projects/doctrine-orm/en/3.3/reference/events.html#reference-events-post-load) that listens to the `postLoad` event. When an entity marked with `#[ContainsNullableEmbeddable]` is loaded, the subscriber checks its embedded properties that either have a nullable type hint or are marked with the `#[NullableEmbedded]` attribute. If an embeddable property has all its values set to `null`, the entire embeddable is set to `null`.
-
-> The `postLoad` event occurs after the entity has been loaded into the current EntityManager from the database or after `refresh()` has been applied to it.
-
-### Example
-
-```php
-$user = new User(
-    emailAddress: new EmailAddress(address: null)
-);
-
-$entityManager->persist($user);
-$entityManager->flush();
-$entityManager->clear();
-
-// When reloading:
-$user = $entityManager->find(User::class, $user->getId());
-$user->getEmailAddress(); // Returns null, not an EmailAddress instance with null values
-```
-
-## Features
-
-- Zero configuration required: Just add the attribute(s), set type hints and it works
-- Automatically converts empty embeddable objects to null during database loads (instead of keeping objects with all-null properties)
-- Fine-grained control: Mark only the properties you want to be nullable
-- Works with any [Doctrine Embeddable](https://www.doctrine-project.org/projects/doctrine-orm/en/3.3/tutorials/embeddables.html)
-- Supports both PHP attribute and XML mapping configurations
-- Type-safe through PHP 8 features
-
-## Troubleshooting
-### Common Issues
-
-- Embeddable not becoming `null`:
-  - Verify the entity has the `#[ContainsNullableEmbeddable]` attribute
-  - Verify the property has a nullable type (`?` or `null` type) _or_ has the `#[NullableEmbedded]` attribute set
-  - Check that all properties in the embeddable are actually `null`
-
-- Type errors:
-  - Ensure your embeddable properties are nullable (`?type`)
-  - Ensure your entity's embeddable property is nullable
-
-## Testing
-
-Run the test suite:
+The bundle hooks into marked entities through Doctrine's class metadata, so the hook is stored in the metadata cache.
+Default Symfony setups rebuild that cache on deploy. If yours lives in a persistent store (Redis, Memcached,
+a database), clear it after installing or upgrading the bundle and after adding `#[ContainsNullableEmbeddable]`
+to an entity, or empty embeddables are silently kept:
 
 ```bash
-composer test
+bin/console doctrine:cache:clear-metadata
 ```
 
-Run all checks (CS Fixer, Psalm, and PHPUnit):
+## Performance
 
-```bash
-composer check-all
-```
+Entities without the marker are not affected. Marked entities cost about 1µs more per loaded entity.
 
 ## License
 
-This bundle is released under the MIT License. See the [LICENSE](LICENSE) file for details.
-
-## Contributing
-
-Contributions are welcome! Please feel free to submit a Pull Request.
+MIT. See [LICENSE](LICENSE).

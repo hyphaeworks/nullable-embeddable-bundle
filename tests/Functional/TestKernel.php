@@ -5,11 +5,11 @@ declare(strict_types=1);
 namespace Hyphaeworks\NullableEmbeddableBundle\Tests\Functional;
 
 use Doctrine\Bundle\DoctrineBundle\DoctrineBundle;
+use Hyphaeworks\NullableEmbeddableBundle\NullableEmbeddableBundle;
 use Symfony\Bundle\FrameworkBundle\FrameworkBundle;
 use Symfony\Component\Config\Loader\LoaderInterface;
 use Symfony\Component\DependencyInjection\ContainerBuilder;
 use Symfony\Component\HttpKernel\Kernel;
-use Hyphaeworks\NullableEmbeddableBundle\NullableEmbeddableBundle;
 
 final class TestKernel extends Kernel
 {
