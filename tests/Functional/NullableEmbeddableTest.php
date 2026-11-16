@@ -10,8 +10,10 @@ use PHPUnit\Framework\Attributes\Test;
 use Symfony\Bundle\FrameworkBundle\Test\KernelTestCase;
 use Hyphaeworks\NullableEmbeddableBundle\Tests\Functional\Entity\AttributesTestEntity;
 use Hyphaeworks\NullableEmbeddableBundle\Tests\Functional\Entity\EmailAddress;
+use Hyphaeworks\NullableEmbeddableBundle\Tests\Functional\Entity\EntityWithNestedEmbeddable;
 use Hyphaeworks\NullableEmbeddableBundle\Tests\Functional\Entity\EntityWithStrictEmailAddress;
 use Hyphaeworks\NullableEmbeddableBundle\Tests\Functional\Entity\Owner;
+use Hyphaeworks\NullableEmbeddableBundle\Tests\Functional\Entity\Price;
 use Hyphaeworks\NullableEmbeddableBundle\Tests\Functional\XmlEntity\XmlTestEntity;
 
 final class NullableEmbeddableTest extends KernelTestCase
@@ -83,6 +85,22 @@ final class NullableEmbeddableTest extends KernelTestCase
         $reloaded = $this->persistAndReload(new Owner($owned));
 
         self::assertNull($reloaded->getOwned()->getEmailAddress());
+    }
+
+    #[Test]
+    public function emptyNestedEmbeddableIsLoadedAsNull(): void
+    {
+        $reloaded = $this->persistAndReload(new EntityWithNestedEmbeddable());
+
+        self::assertNull($reloaded->getPrice());
+    }
+
+    #[Test]
+    public function emptyNestedEmbeddableIsLoadedAsNullInsideEmbeddableWithValue(): void
+    {
+        $reloaded = $this->persistAndReload(new EntityWithNestedEmbeddable(new Price(amount: 100)));
+
+        self::assertEquals(new Price(amount: 100), $reloaded->getPrice());
     }
 
     /**

@@ -34,24 +34,54 @@ final class NullableEmbeddableListener
      */
     private function processEmbeddables(object $entity, \ReflectionClass $entityClass, array $embeddedClasses): void
     {
-        /** @var string $fieldName */
-        foreach (array_keys($embeddedClasses) as $fieldName) {
-            $property = $entityClass->getProperty($fieldName);
+        $paths = array_map(strval(...), array_keys($embeddedClasses));
+        usort($paths, static fn (string $first, string $second): int => substr_count($second, '.') <=> substr_count($first, '.'));
 
+        foreach ($paths as $path) {
+            $ownerPath = explode('.', $path);
+            $fieldName = array_pop($ownerPath);
+            $owner = $this->resolveOwner($entity, $entityClass, $ownerPath);
+            if (null === $owner) {
+                continue;
+            }
+
+            $property = $owner === $entity ? $entityClass->getProperty($fieldName) : new \ReflectionProperty($owner, $fieldName);
             if (!$this->isNullable($property)) {
                 continue;
             }
 
             /** @var object|null $value */
-            $value = $property->getValue($entity);
+            $value = $property->getValue($owner);
             if (null === $value) {
                 continue;
             }
 
             if ($this->allPropertiesAreNull($value)) {
-                $property->setValue($entity, null);
+                $property->setValue($owner, null);
             }
         }
+    }
+
+    /**
+     * @param \ReflectionClass<object> $entityClass
+     * @param list<string>             $ownerPath
+     *
+     * @throws \ReflectionException
+     */
+    private function resolveOwner(object $entity, \ReflectionClass $entityClass, array $ownerPath): ?object
+    {
+        $owner = $entity;
+        $ownerClass = $entityClass;
+        foreach ($ownerPath as $fieldName) {
+            /** @var object|null $owner */
+            $owner = $ownerClass->getProperty($fieldName)->getValue($owner);
+            if (null === $owner) {
+                return null;
+            }
+            $ownerClass = new \ReflectionObject($owner);
+        }
+
+        return $owner;
     }
 
     private function isNullable(\ReflectionProperty $property): bool
