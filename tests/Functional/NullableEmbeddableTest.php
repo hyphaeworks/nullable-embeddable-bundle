@@ -108,6 +108,19 @@ final class NullableEmbeddableTest extends KernelTestCase
     }
 
     #[Test]
+    public function nulledEmbeddableLeavesNothingToUpdate(): void
+    {
+        $reloaded = $this->persistAndReload(new EntityWithNestedEmbeddable(new Price()));
+        $unitOfWork = $this->entityManager->getUnitOfWork();
+
+        $unitOfWork->computeChangeSets();
+
+        self::assertNull($reloaded->getPrice());
+        self::assertSame([], $unitOfWork->getEntityChangeSet($reloaded));
+        self::assertFalse($unitOfWork->isScheduledForUpdate($reloaded));
+    }
+
+    #[Test]
     public function readonlyEmbeddedPropertyIsRejected(): void
     {
         $this->expectException(ReadonlyEmbeddedPropertyException::class);
