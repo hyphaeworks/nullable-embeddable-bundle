@@ -7,6 +7,6 @@ namespace Hyphaeworks\NullableEmbeddableBundle\Tests\Functional\Entity;
 use Doctrine\ORM\Mapping as ORM;
 
 #[ORM\Entity]
-class UnmarkedChildEntity extends MarkedParentEntity
+class EntityExtendingMappedSuperclass extends MappedSuperclassWithEmbeddable
 {
 }

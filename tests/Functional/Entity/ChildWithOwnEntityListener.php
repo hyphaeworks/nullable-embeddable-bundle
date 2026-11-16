@@ -8,6 +8,6 @@ use Doctrine\ORM\Mapping as ORM;
 
 #[ORM\Entity]
 #[ORM\EntityListeners([ChildEntityListener::class])]
-class ChildWithOwnEntityListener extends MarkedParentEntity
+class ChildWithOwnEntityListener extends ParentEntity
 {
 }

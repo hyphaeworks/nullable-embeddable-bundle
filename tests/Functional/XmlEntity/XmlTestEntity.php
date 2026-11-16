@@ -4,11 +4,9 @@ declare(strict_types=1);
 
 namespace Hyphaeworks\NullableEmbeddableBundle\Tests\Functional\XmlEntity;
 
-use Hyphaeworks\NullableEmbeddableBundle\Attribute\ContainsNullableEmbeddable;
 use Hyphaeworks\NullableEmbeddableBundle\Attribute\NullableEmbedded;
 use Hyphaeworks\NullableEmbeddableBundle\Tests\Functional\Entity\EmailAddress;
 
-#[ContainsNullableEmbeddable]
 class XmlTestEntity
 {
     private ?int $id = null;

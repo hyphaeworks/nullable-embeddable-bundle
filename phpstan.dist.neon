@@ -10,5 +10,5 @@ parameters:
         # ORM 2 maps embeddables as arrays; ORM 3 as EmbeddedClassMapping
         -
             identifier: instanceof.alwaysTrue
-            path: src/Doctrine/NullableEmbeddableListener.php
+            path: src/Doctrine/MappedEmbeddedProperty.php
             count: 1

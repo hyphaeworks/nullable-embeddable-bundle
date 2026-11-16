@@ -6,24 +6,24 @@ namespace Hyphaeworks\NullableEmbeddableBundle\Tests\Functional;
 
 use Doctrine\ORM\EntityManagerInterface;
 use Doctrine\ORM\Tools\SchemaTool;
-use Hyphaeworks\NullableEmbeddableBundle\Exception\ReadonlyEmbeddedPropertyException;
 use Hyphaeworks\NullableEmbeddableBundle\Tests\Functional\Entity\AttributesTestEntity;
+use Hyphaeworks\NullableEmbeddableBundle\Tests\Functional\Entity\ChildEntity;
 use Hyphaeworks\NullableEmbeddableBundle\Tests\Functional\Entity\ChildWithOwnEntityListener;
 use Hyphaeworks\NullableEmbeddableBundle\Tests\Functional\Entity\ContactCard;
+use Hyphaeworks\NullableEmbeddableBundle\Tests\Functional\Entity\CountryCode;
 use Hyphaeworks\NullableEmbeddableBundle\Tests\Functional\Entity\EmailAddress;
 use Hyphaeworks\NullableEmbeddableBundle\Tests\Functional\Entity\EmailAddressWithUnmappedState;
-use Hyphaeworks\NullableEmbeddableBundle\Tests\Functional\Entity\EntityExtendingMarkedMappedSuperclass;
+use Hyphaeworks\NullableEmbeddableBundle\Tests\Functional\Entity\EntityExtendingMappedSuperclass;
 use Hyphaeworks\NullableEmbeddableBundle\Tests\Functional\Entity\EntityWithContactCard;
 use Hyphaeworks\NullableEmbeddableBundle\Tests\Functional\Entity\EntityWithNestedEmbeddable;
+use Hyphaeworks\NullableEmbeddableBundle\Tests\Functional\Entity\EntityWithNotNullableColumnEmbeddable;
 use Hyphaeworks\NullableEmbeddableBundle\Tests\Functional\Entity\EntityWithReadonlyEmbedded;
 use Hyphaeworks\NullableEmbeddableBundle\Tests\Functional\Entity\EntityWithReadonlyNestedEmbedded;
 use Hyphaeworks\NullableEmbeddableBundle\Tests\Functional\Entity\EntityWithStrictEmailAddress;
 use Hyphaeworks\NullableEmbeddableBundle\Tests\Functional\Entity\EntityWithUnmappedEmbeddableState;
-use Hyphaeworks\NullableEmbeddableBundle\Tests\Functional\Entity\MarkedChildEntity;
 use Hyphaeworks\NullableEmbeddableBundle\Tests\Functional\Entity\Owner;
 use Hyphaeworks\NullableEmbeddableBundle\Tests\Functional\Entity\Price;
 use Hyphaeworks\NullableEmbeddableBundle\Tests\Functional\Entity\PriceWithReadonlyContact;
-use Hyphaeworks\NullableEmbeddableBundle\Tests\Functional\Entity\UnmarkedChildEntity;
 use Hyphaeworks\NullableEmbeddableBundle\Tests\Functional\XmlEntity\XmlTestEntity;
 use PHPUnit\Framework\Attributes\Test;
 use Symfony\Bundle\FrameworkBundle\Test\KernelTestCase;
@@ -64,7 +64,7 @@ final class NullableEmbeddableTest extends KernelTestCase
     }
 
     #[Test]
-    public function emptyEmbeddableOfXmlMappedEntityWithUntypedMarkedPropertyIsLoadedAsNull(): void
+    public function emptyEmbeddableOfXmlMappedEntityWithUntypedNullableEmbeddedPropertyIsLoadedAsNull(): void
     {
         $entity = new XmlTestEntity();
         $entity->setEmailAddress(new EmailAddress(address: null));
@@ -75,20 +75,9 @@ final class NullableEmbeddableTest extends KernelTestCase
     }
 
     #[Test]
-    public function emptyEmbeddableOfChildOfMarkedEntityIsLoadedAsNull(): void
+    public function emptyEmbeddableOfChildEntityIsLoadedAsNull(): void
     {
-        $entity = new UnmarkedChildEntity();
-        $entity->setEmailAddress(new EmailAddress(address: null));
-
-        $reloaded = $this->persistAndReload($entity);
-
-        self::assertNull($reloaded->getEmailAddress());
-    }
-
-    #[Test]
-    public function emptyEmbeddableOfMarkedChildOfMarkedEntityIsLoadedAsNull(): void
-    {
-        $entity = new MarkedChildEntity();
+        $entity = new ChildEntity();
         $entity->setEmailAddress(new EmailAddress(address: null));
 
         $reloaded = $this->persistAndReload($entity);
@@ -108,9 +97,9 @@ final class NullableEmbeddableTest extends KernelTestCase
     }
 
     #[Test]
-    public function emptyEmbeddableOfEntityExtendingMarkedMappedSuperclassIsLoadedAsNull(): void
+    public function emptyEmbeddableOfEntityExtendingMappedSuperclassIsLoadedAsNull(): void
     {
-        $entity = new EntityExtendingMarkedMappedSuperclass();
+        $entity = new EntityExtendingMappedSuperclass();
         $entity->setEmailAddress(new EmailAddress(address: null));
 
         $reloaded = $this->persistAndReload($entity);
@@ -237,29 +226,27 @@ final class NullableEmbeddableTest extends KernelTestCase
     }
 
     #[Test]
-    public function readonlyEmbeddedPropertyIsRejected(): void
+    public function emptyEmbeddableOfReadonlyPropertyIsLeftAsLoaded(): void
     {
-        $this->expectException(ReadonlyEmbeddedPropertyException::class);
-        $this->expectExceptionMessage(EntityWithReadonlyEmbedded::class.'::$emailAddress is readonly');
+        $reloaded = $this->persistAndReload(new EntityWithReadonlyEmbedded(new EmailAddress(address: null)));
 
-        $this->persistAndReload(new EntityWithReadonlyEmbedded());
+        self::assertEquals(new EmailAddress(address: null), $reloaded->emailAddress);
     }
 
     #[Test]
-    public function readonlyEmbeddedPropertyIsRejectedEvenWhenEmbeddableHasValue(): void
+    public function readonlyNestedEmbeddedPropertyDoesNotStopItsOwnerFromBeingNulled(): void
     {
-        $this->expectException(ReadonlyEmbeddedPropertyException::class);
+        $reloaded = $this->persistAndReload(new EntityWithReadonlyNestedEmbedded(new PriceWithReadonlyContact()));
 
-        $this->persistAndReload(new EntityWithReadonlyEmbedded(new EmailAddress(address: 'someone@example.com')));
+        self::assertNull($reloaded->getPrice());
     }
 
     #[Test]
-    public function readonlyNestedEmbeddedPropertyIsRejected(): void
+    public function embeddableWithNotNullableColumnIsLeftAsLoaded(): void
     {
-        $this->expectException(ReadonlyEmbeddedPropertyException::class);
-        $this->expectExceptionMessage(PriceWithReadonlyContact::class.'::$contact is readonly');
+        $reloaded = $this->persistAndReload(new EntityWithNotNullableColumnEmbeddable(new CountryCode('AT')));
 
-        $this->persistAndReload(new EntityWithReadonlyNestedEmbedded(new PriceWithReadonlyContact(amount: 100)));
+        self::assertEquals(new CountryCode('AT'), $reloaded->getCountryCode());
     }
 
     #[\Override]

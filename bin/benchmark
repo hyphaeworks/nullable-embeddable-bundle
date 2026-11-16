@@ -11,7 +11,6 @@ use Doctrine\ORM\Events;
 use Doctrine\ORM\Mapping as ORM;
 use Doctrine\ORM\ORMSetup;
 use Doctrine\ORM\Tools\SchemaTool;
-use Hyphaeworks\NullableEmbeddableBundle\Attribute\ContainsNullableEmbeddable;
 use Hyphaeworks\NullableEmbeddableBundle\Doctrine\NullableEmbeddableListener;
 
 require __DIR__.'/../vendor/autoload.php';
@@ -29,15 +28,15 @@ final class Money
 }
 
 #[ORM\Entity]
-class Unmarked
+class RequiredPrice
 {
     #[ORM\Id, ORM\GeneratedValue, ORM\Column] public ?int $id = null;
     #[ORM\Column] public string $name = 'x';
-    #[ORM\Embedded(class: Money::class)] public ?Money $price = null;
+    #[ORM\Embedded(class: Money::class)] public Money $price;
 }
 
-#[ORM\Entity, ContainsNullableEmbeddable]
-class Marked
+#[ORM\Entity]
+class OptionalPrices
 {
     #[ORM\Id, ORM\GeneratedValue, ORM\Column] public ?int $id = null;
     #[ORM\Column] public string $name = 'x';
@@ -71,7 +70,7 @@ for ($process = 0; $process < $processes; ++$process) {
 }
 
 printf("PHP %s, %d rows, findAll() + clear(), median of %d processes × %d rounds\n\n", \PHP_VERSION, $rows, $processes, ROUNDS);
-printf("%-16s %26s %26s\n", '', 'entity without marker', 'marked, 2 embeddables');
+printf("%-16s %26s %26s\n", '', 'non-nullable embedded', '2 nullable embedded');
 $baseline = medians($timings[VARIANTS[0]]);
 foreach (VARIANTS as $variant) {
     $cells = array_map(
@@ -118,13 +117,13 @@ function measure(int $rows, string $variant): array
         $config->getEntityListenerResolver()->register($listener);
         $entityManager->getEventManager()->addEventListener(Events::loadClassMetadata, $listener);
     }
-    (new SchemaTool($entityManager))->createSchema(array_map($entityManager->getClassMetadata(...), [Unmarked::class, Marked::class]));
+    (new SchemaTool($entityManager))->createSchema(array_map($entityManager->getClassMetadata(...), [RequiredPrice::class, OptionalPrices::class]));
 
     $connection->beginTransaction();
     for ($row = 0; $row < $rows; ++$row) {
         $empty = 0 === $row % 2;
-        $connection->insert('Unmarked', ['name' => 'x', 'price_amount' => null, 'price_currency' => null]);
-        $connection->insert('Marked', [
+        $connection->insert('RequiredPrice', ['name' => 'x', 'price_amount' => null, 'price_currency' => null]);
+        $connection->insert('OptionalPrices', [
             'name' => 'x',
             'price_amount' => $empty ? null : 100,
             'price_currency' => $empty ? null : 'EUR',
@@ -144,5 +143,5 @@ function measure(int $rows, string $variant): array
         }
 
         return median(\array_slice($times, 1));
-    }, [Unmarked::class, Marked::class]);
+    }, [RequiredPrice::class, OptionalPrices::class]);
 }

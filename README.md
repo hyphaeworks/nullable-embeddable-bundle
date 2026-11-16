@@ -2,9 +2,11 @@
 
 [![CI](https://github.com/hyphaeworks/nullable-embeddable-bundle/actions/workflows/ci.yml/badge.svg)](https://github.com/hyphaeworks/nullable-embeddable-bundle/actions/workflows/ci.yml)
 
-A [Symfony bundle](https://symfony.com/doc/current/bundles.html) for nullable [Doctrine embeddables](https://www.doctrine-project.org/projects/doctrine-orm/en/current/tutorials/embeddables.html).
-Doctrine always creates an embeddable object on load, even when all its columns are `NULL`.
-This bundle sets such an empty embeddable to `null` instead.
+A nullable embeddable bundle that just works.
+
+Doctrine always creates an [embeddable](https://www.doctrine-project.org/projects/doctrine-orm/en/current/tutorials/embeddables.html)
+object on load, even when all its columns are `NULL`. This [Symfony bundle](https://symfony.com/doc/current/bundles.html)
+sets such an empty embeddable to `null` instead: install it, type the property as nullable, done.
 
 ## Installation
 
@@ -27,14 +29,22 @@ Hyphaeworks\NullableEmbeddableBundle\NullableEmbeddableBundle::class => ['all' =
 
 ## Usage
 
-Mark the entity with `#[ContainsNullableEmbeddable]` and give the embedded property a nullable type:
+Give the embedded property a nullable type. That's all:
 
 ```php
 use Doctrine\ORM\Mapping as ORM;
-use Hyphaeworks\NullableEmbeddableBundle\Attribute\ContainsNullableEmbeddable;
+
+#[ORM\Embeddable]
+final class EmailAddress
+{
+    public function __construct(
+        #[ORM\Column(nullable: true)]
+        public readonly ?string $address = null,
+    ) {
+    }
+}
 
 #[ORM\Entity]
-#[ContainsNullableEmbeddable]
 class User
 {
     #[ORM\Embedded(class: EmailAddress::class)]
@@ -50,26 +60,33 @@ An untyped property needs the `#[NullableEmbedded]` attribute instead:
 private $emailAddress;
 ```
 
-Embedded properties with a non-nullable type are left alone.
-The marker is inherited: subclasses of a marked entity or mapped superclass are handled too.
-With XML mapping, the marker attribute still goes on the entity class.
+This works with attribute and XML mapping, nested embeddables, inherited properties and mapped superclasses.
+
+## How it works
+
+![How it works](docs/how-it-works.png)
 
 ## Rules
 
 - An embeddable is empty when every mapped column in it is `null` or uninitialized.
   Unmapped and static properties are ignored; `0`, `''` and `false` are values.
-- Nested embeddables are supported: an outer embeddable that only holds an empty inner one becomes `null` too.
-- A nullable embedded property must not be `readonly`, because the bundle has to set it to `null` after Doctrine.
-  Loading such an entity throws a `ReadonlyEmbeddedPropertyException`. The properties inside the embeddable may be `readonly`.
+- Nested embeddables are checked innermost first: an outer embeddable that only holds an empty inner one becomes `null` too.
+- A property is only set to `null` when that is possible. These are left exactly as Doctrine loads them,
+  because they may be deliberate:
+  - a non-nullable embedded property (`EmailAddress $emailAddress`);
+  - a `readonly` embedded property, which cannot be changed after Doctrine has set it
+    (the properties *inside* the embeddable may be `readonly`);
+  - an embeddable with a `NOT NULL` column: the database never returns all of its columns as `NULL`,
+    so there is nothing to set to `null`. To store `null` in such a property, every column needs `nullable: true`.
 - Single-column value objects (an email address, a currency code) are often better served by a
   [custom DBAL type](https://www.doctrine-project.org/projects/doctrine-orm/en/current/cookbook/custom-mapping-types.html).
 
 ## Metadata cache
 
-The bundle hooks into marked entities through Doctrine's class metadata, so the hook is stored in the metadata cache.
-Default Symfony setups rebuild that cache on deploy. If yours lives in a persistent store (Redis, Memcached,
-a database), clear it after installing or upgrading the bundle and after adding `#[ContainsNullableEmbeddable]`
-to an entity, or empty embeddables are silently kept:
+The bundle hooks into entities with nullable embedded properties through Doctrine's class metadata, so the hook
+is stored in the metadata cache. Default Symfony setups rebuild that cache on deploy. If yours lives in a persistent
+store (Redis, Memcached, a database), clear it after installing or upgrading the bundle and after changing an embedded
+property's mapping, or empty embeddables are silently kept:
 
 ```bash
 bin/console doctrine:cache:clear-metadata
@@ -77,7 +94,7 @@ bin/console doctrine:cache:clear-metadata
 
 ## Performance
 
-Entities without the marker are not affected. Marked entities cost about 1µs more per loaded entity.
+Entities without a nullable embedded property are not affected. The others cost about 1µs more per loaded entity.
 
 ## License
 

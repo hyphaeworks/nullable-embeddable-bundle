@@ -10,60 +10,51 @@ namespace Hyphaeworks\NullableEmbeddableBundle\Doctrine;
 final readonly class NullableEmbeddedProperty
 {
     /**
-     * @param list<\ReflectionProperty>       $ownerPath
-     * @param list<list<\ReflectionProperty>> $columnPaths
+     * @param list<PropertyPath> $columnPaths
      */
-    public function __construct(
-        private array $ownerPath,
+    private function __construct(
+        private PropertyPath $ownerPath,
         private \ReflectionProperty $property,
         private array $columnPaths,
     ) {
     }
 
-    public function nullifyIfEmpty(object $entity): void
+    public static function of(MappedEmbeddedProperty $embedded): ?self
     {
-        $owner = $entity;
-        foreach ($this->ownerPath as $ownerProperty) {
-            /** @var object|null $owner */
-            $owner = $ownerProperty->getValue($owner);
-            if (null === $owner) {
-                return;
-            }
+        if (!$embedded->canBeSetToNull()) {
+            return null;
         }
 
-        /** @var object|null $embeddable */
-        $embeddable = $this->property->getValue($owner);
-        if (null === $embeddable) {
+        return new self(
+            $embedded->ownerPath,
+            $embedded->property,
+            array_map(static fn (MappedColumn $column): PropertyPath => $column->path, $embedded->columns),
+        );
+    }
+
+    public function nullifyIfEmpty(object $entity): void
+    {
+        $owner = $this->ownerPath->readFrom($entity);
+        if (!\is_object($owner)) {
             return;
         }
 
-        foreach ($this->columnPaths as $columnPath) {
-            if ($this->hasValue($embeddable, $columnPath)) {
-                return;
-            }
+        $embeddable = $this->property->getValue($owner);
+        if (!\is_object($embeddable) || $this->holdsValue($embeddable)) {
+            return;
         }
 
         $this->property->setValue($owner, null);
     }
 
-    /**
-     * @param list<\ReflectionProperty> $columnPath
-     */
-    private function hasValue(object $embeddable, array $columnPath): bool
+    private function holdsValue(object $embeddable): bool
     {
-        $column = array_pop($columnPath);
-        $owner = $embeddable;
-        foreach ($columnPath as $property) {
-            if (!$property->isInitialized($owner)) {
-                return false;
-            }
-            /** @var object|null $owner */
-            $owner = $property->getValue($owner);
-            if (null === $owner) {
-                return false;
+        foreach ($this->columnPaths as $columnPath) {
+            if (null !== $columnPath->readFrom($embeddable)) {
+                return true;
             }
         }
 
-        return null !== $column && $column->isInitialized($owner) && null !== $column->getValue($owner);
+        return false;
     }
 }

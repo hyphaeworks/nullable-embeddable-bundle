@@ -5,11 +5,12 @@ declare(strict_types=1);
 namespace Hyphaeworks\NullableEmbeddableBundle\Tests\Functional\Entity;
 
 use Doctrine\ORM\Mapping as ORM;
-use Hyphaeworks\NullableEmbeddableBundle\Attribute\ContainsNullableEmbeddable;
 
-#[ORM\MappedSuperclass]
-#[ContainsNullableEmbeddable]
-abstract class MarkedMappedSuperclass
+#[ORM\Entity]
+#[ORM\InheritanceType('SINGLE_TABLE')]
+#[ORM\DiscriminatorColumn(name: 'type', type: 'string')]
+#[ORM\DiscriminatorMap(['parent' => ParentEntity::class, 'child' => ChildEntity::class, 'childWithListener' => ChildWithOwnEntityListener::class])]
+class ParentEntity
 {
     #[ORM\Id]
     #[ORM\GeneratedValue]
