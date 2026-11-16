@@ -20,6 +20,7 @@ final class NullableEmbeddableSubscriber implements EventSubscriber
      *
      * @psalm-return array{0: 'postLoad'}
      */
+    #[\Override]
     public function getSubscribedEvents(): array
     {
         return [

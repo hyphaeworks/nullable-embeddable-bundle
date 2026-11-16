@@ -12,4 +12,12 @@
             <directory name="vendor"/>
         </ignoreFiles>
     </projectFiles>
+    <issueHandlers>
+        <!-- The replacement exists only from Symfony 8.1 -->
+        <DeprecatedInterface>
+            <errorLevel type="suppress">
+                <file name="src/NullableEmbeddableBundle.php"/>
+            </errorLevel>
+        </DeprecatedInterface>
+    </issueHandlers>
 </psalm>

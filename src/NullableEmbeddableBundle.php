@@ -6,6 +6,6 @@ namespace Hyphaeworks\NullableEmbeddableBundle;
 
 use Symfony\Component\HttpKernel\Bundle\AbstractBundle;
 
-class NullableEmbeddableBundle extends AbstractBundle
+final class NullableEmbeddableBundle extends AbstractBundle
 {
 }
