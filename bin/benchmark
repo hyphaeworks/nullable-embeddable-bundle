@@ -111,6 +111,11 @@ function measure(int $rows, string $variant): array
     }
     $connection = DriverManager::getConnection(['driver' => 'pdo_sqlite', 'memory' => true], $config);
     $entityManager = new EntityManager($connection, $config);
+    if ('with bundle' === $variant) {
+        $listener = new NullableEmbeddableListener();
+        $config->getEntityListenerResolver()->register($listener);
+        $entityManager->getEventManager()->addEventListener(Events::loadClassMetadata, $listener);
+    }
     (new SchemaTool($entityManager))->createSchema(array_map($entityManager->getClassMetadata(...), [Unmarked::class, Marked::class]));
 
     $connection->beginTransaction();
@@ -126,10 +131,6 @@ function measure(int $rows, string $variant): array
         ]);
     }
     $connection->commit();
-
-    if ('with bundle' === $variant) {
-        $entityManager->getEventManager()->addEventListener(Events::postLoad, new NullableEmbeddableListener());
-    }
 
     return array_map(static function (string $class) use ($entityManager): float {
         $times = [];

@@ -17,6 +17,7 @@ final class NullableEmbeddableBundle extends AbstractBundle
     {
         $container->services()
             ->set(NullableEmbeddableListener::class)
-            ->tag('doctrine.event_listener', ['event' => Events::postLoad]);
+            ->tag('doctrine.event_listener', ['event' => Events::loadClassMetadata])
+            ->tag('doctrine.orm.entity_listener');
     }
 }

@@ -4,7 +4,10 @@ declare(strict_types=1);
 
 namespace Hyphaeworks\NullableEmbeddableBundle\Doctrine;
 
+use Doctrine\ORM\Event\LoadClassMetadataEventArgs;
 use Doctrine\ORM\Event\PostLoadEventArgs;
+use Doctrine\ORM\Events;
+use Doctrine\ORM\Mapping\ClassMetadata;
 use Doctrine\ORM\Mapping\EmbeddedClassMapping;
 use Hyphaeworks\NullableEmbeddableBundle\Attribute\ContainsNullableEmbeddable;
 use Hyphaeworks\NullableEmbeddableBundle\Attribute\NullableEmbedded;
@@ -12,41 +15,56 @@ use Hyphaeworks\NullableEmbeddableBundle\Exception\ReadonlyEmbeddedPropertyExcep
 
 final class NullableEmbeddableListener
 {
-    /**
-     * @throws \ReflectionException
-     */
-    public function postLoad(PostLoadEventArgs $args): void
+    /** @var array<string, list<NullableEmbeddedProperty>> */
+    private array $nullableEmbeddedPropertiesByClass = [];
+
+    public function loadClassMetadata(LoadClassMetadataEventArgs $args): void
     {
-        $entity = $args->getObject();
-        $metadata = $args->getObjectManager()->getClassMetadata($entity::class);
-        $entityClass = $metadata->getReflectionClass();
-        if (!$entityClass->getAttributes(ContainsNullableEmbeddable::class)) {
+        $metadata = $args->getClassMetadata();
+        if ([] === $metadata->getReflectionClass()->getAttributes(ContainsNullableEmbeddable::class)) {
             return;
         }
 
-        $this->processEmbeddables($entity, $entityClass, $metadata->embeddedClasses);
+        $metadata->addEntityListener(Events::postLoad, self::class, 'postLoad');
     }
 
     /**
-     * @param \ReflectionClass<object>            $entityClass
-     * @param array<string, EmbeddedClassMapping> $embeddedClasses
+     * @throws \ReflectionException
+     */
+    public function postLoad(object $entity, PostLoadEventArgs $args): void
+    {
+        $nullableEmbeddedProperties = $this->nullableEmbeddedPropertiesByClass[$entity::class]
+            ??= $this->analyse($args->getObjectManager()->getClassMetadata($entity::class));
+
+        foreach ($nullableEmbeddedProperties as $nullableEmbeddedProperty) {
+            $nullableEmbeddedProperty->nullifyIfEmpty($entity);
+        }
+    }
+
+    /**
+     * @param ClassMetadata<object> $metadata
+     *
+     * @return list<NullableEmbeddedProperty>
      *
      * @throws \ReflectionException
      */
-    private function processEmbeddables(object $entity, \ReflectionClass $entityClass, array $embeddedClasses): void
+    private function analyse(ClassMetadata $metadata): array
     {
-        $paths = array_map(strval(...), array_keys($embeddedClasses));
+        $paths = array_map(strval(...), array_keys($metadata->embeddedClasses));
         usort($paths, static fn (string $first, string $second): int => substr_count($second, '.') <=> substr_count($first, '.'));
 
+        $nullableEmbeddedProperties = [];
         foreach ($paths as $path) {
-            $ownerPath = explode('.', $path);
-            $fieldName = array_pop($ownerPath);
-            $owner = $this->resolveOwner($entity, $entityClass, $ownerPath);
-            if (null === $owner) {
-                continue;
+            $ownerPath = [];
+            $ownerClass = $metadata->getReflectionClass();
+            $segments = explode('.', $path);
+            $fieldName = array_pop($segments);
+            foreach ($segments as $depth => $segment) {
+                $ownerPath[] = $ownerClass->getProperty($segment);
+                $ownerClass = $this->embeddableClass($metadata, implode('.', \array_slice($segments, 0, $depth + 1)));
             }
 
-            $property = $owner === $entity ? $entityClass->getProperty($fieldName) : new \ReflectionProperty($owner, $fieldName);
+            $property = $ownerClass->getProperty($fieldName);
             if (!$this->isNullable($property)) {
                 continue;
             }
@@ -54,38 +72,34 @@ final class NullableEmbeddableListener
                 throw ReadonlyEmbeddedPropertyException::forProperty($property);
             }
 
-            /** @var object|null $value */
-            $value = $property->getValue($owner);
-            if (null === $value) {
-                continue;
-            }
-
-            if ($this->allPropertiesAreNull($value)) {
-                $property->setValue($owner, null);
-            }
+            $nullableEmbeddedProperties[] = new NullableEmbeddedProperty(
+                $ownerPath,
+                $property,
+                $this->embeddableClass($metadata, $path)->getProperties(),
+            );
         }
+
+        return $nullableEmbeddedProperties;
     }
 
     /**
-     * @param \ReflectionClass<object> $entityClass
-     * @param list<string>             $ownerPath
+     * @param ClassMetadata<object> $metadata
+     *
+     * @return \ReflectionClass<object>
      *
      * @throws \ReflectionException
      */
-    private function resolveOwner(object $entity, \ReflectionClass $entityClass, array $ownerPath): ?object
+    private function embeddableClass(ClassMetadata $metadata, string $path): \ReflectionClass
     {
-        $owner = $entity;
-        $ownerClass = $entityClass;
-        foreach ($ownerPath as $fieldName) {
-            /** @var object|null $owner */
-            $owner = $ownerClass->getProperty($fieldName)->getValue($owner);
-            if (null === $owner) {
-                return null;
-            }
-            $ownerClass = new \ReflectionObject($owner);
-        }
+        $mapping = $metadata->embeddedClasses[$path];
+        /**
+         * @psalm-suppress RedundantConditionGivenDocblockType ORM 2 maps embeddables as arrays
+         *
+         * @var class-string $className
+         */
+        $className = $mapping instanceof EmbeddedClassMapping ? $mapping->class : $mapping['class'];
 
-        return $owner;
+        return new \ReflectionClass($className);
     }
 
     private function isNullable(\ReflectionProperty $property): bool
@@ -93,20 +107,9 @@ final class NullableEmbeddableListener
         $type = $property->getType();
 
         if (null === $type) {
-            return !empty($property->getAttributes(NullableEmbedded::class));
+            return [] !== $property->getAttributes(NullableEmbedded::class);
         }
 
         return $type->allowsNull();
-    }
-
-    private function allPropertiesAreNull(object $object): bool
-    {
-        foreach ((new \ReflectionObject($object))->getProperties() as $property) {
-            if ($property->isInitialized($object) && null !== $property->getValue($object)) {
-                return false;
-            }
-        }
-
-        return true;
     }
 }
