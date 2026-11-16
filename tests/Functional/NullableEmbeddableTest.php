@@ -10,6 +10,7 @@ use PHPUnit\Framework\Attributes\Test;
 use Symfony\Bundle\FrameworkBundle\Test\KernelTestCase;
 use Hyphaeworks\NullableEmbeddableBundle\Tests\Functional\Entity\AttributesTestEntity;
 use Hyphaeworks\NullableEmbeddableBundle\Tests\Functional\Entity\EmailAddress;
+use Hyphaeworks\NullableEmbeddableBundle\Tests\Functional\Entity\EntityWithStrictEmailAddress;
 use Hyphaeworks\NullableEmbeddableBundle\Tests\Functional\XmlEntity\XmlTestEntity;
 
 final class NullableEmbeddableTest extends KernelTestCase
@@ -60,6 +61,14 @@ final class NullableEmbeddableTest extends KernelTestCase
         $entity->setEmailAddress(new EmailAddress(address: null));
 
         $reloaded = $this->persistAndReload($entity);
+
+        self::assertNull($reloaded->getEmailAddress());
+    }
+
+    #[Test]
+    public function embeddableWithUninitializedPropertiesIsLoadedAsNull(): void
+    {
+        $reloaded = $this->persistAndReload(new EntityWithStrictEmailAddress());
 
         self::assertNull($reloaded->getEmailAddress());
     }

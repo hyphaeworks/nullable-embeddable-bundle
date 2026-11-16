@@ -66,7 +66,7 @@ final class NullableEmbeddableListener
     private function allPropertiesAreNull(object $object): bool
     {
         foreach ((new \ReflectionObject($object))->getProperties() as $property) {
-            if (null !== $property->getValue($object)) {
+            if ($property->isInitialized($object) && null !== $property->getValue($object)) {
                 return false;
             }
         }
