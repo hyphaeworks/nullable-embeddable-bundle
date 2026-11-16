@@ -10,66 +10,59 @@ permissions:
   contents: read
 
 jobs:
+  qa:
+    name: Coding standards and static analysis
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: shivammathur/setup-php@v2
+        with:
+          php-version: '8.5'
+          coverage: none
+
+      - uses: ramsey/composer-install@v4
+        with:
+          dependency-versions: highest
+
+      - run: composer cs:check
+
+      - run: composer psalm
+
   tests:
-    name: PHP ${{ matrix.php-version }} - Symfony ${{ matrix.symfony-version }}
+    name: PHP ${{ matrix.php }} · Symfony ${{ matrix.symfony }} · ORM ${{ matrix.orm }} · ${{ matrix.dependencies }}
     runs-on: ubuntu-latest
     strategy:
       fail-fast: false
       matrix:
-        php-version: ['8.1', '8.2', '8.3']
-        symfony-version: ['^6.4', '^7.0']
+        php: [ '8.2', '8.3', '8.4', '8.5' ]
+        symfony: [ '6.4', '7.4', '8' ]
+        orm: [ '^2.17', '^3.0' ]
+        dependencies: [ highest, lowest ]
         exclude:
-          - php-version: '8.1'
-            symfony-version: '^7.0'
-
+          - symfony: '8'
+            php: '8.2'
+          - symfony: '8'
+            php: '8.3'
+          - symfony: '8'
+            orm: '^2.17'
+    env:
+      SYMFONY_REQUIRE: ${{ matrix.symfony }}.*
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
 
-      - name: Setup PHP
-        uses: shivammathur/setup-php@v2
+      - uses: shivammathur/setup-php@v2
         with:
-          php-version: ${{ matrix.php-version }}
+          php-version: ${{ matrix.php }}
           coverage: none
-          tools: composer:v2
+          tools: flex
 
-      - name: Get composer cache directory
-        id: composer-cache
-        run: echo "dir=$(composer config cache-files-dir)" >> $GITHUB_OUTPUT
+      - run: |
+          composer remove --dev --no-update vimeo/psalm friendsofphp/php-cs-fixer
+          composer require --no-update "doctrine/orm:${{ matrix.orm }}"
 
-      - name: Cache dependencies
-        uses: actions/cache@v3
+      - uses: ramsey/composer-install@v4
         with:
-          path: ${{ steps.composer-cache.outputs.dir }}
-          key: ${{ runner.os }}-composer-${{ hashFiles('**/composer.lock') }}
-          restore-keys: ${{ runner.os }}-composer-
+          dependency-versions: ${{ matrix.dependencies }}
 
-      - name: Install dependencies
-        run: |
-          composer require symfony/framework-bundle:${{ matrix.symfony-version }} --no-update
-          composer update --no-progress
-
-      - name: Cache PHP-CS-Fixer results
-        uses: actions/cache@v3
-        with:
-          path: .php-cs-fixer.cache
-          key: ${{ runner.os }}-php-cs-fixer-${{ hashFiles('.php-cs-fixer.dist.php') }}
-
-      - name: Run PHP-CS-Fixer
-        run: composer cs:check
-
-      - name: Cache Psalm results
-        uses: actions/cache@v3
-        with:
-          path: |
-            ~/.cache/psalm
-            psalm.cache
-          key: ${{ runner.os }}-psalm-${{ hashFiles('psalm.xml') }}-${{ github.sha }}
-          restore-keys: |
-            ${{ runner.os }}-psalm-${{ hashFiles('psalm.xml') }}-
-            ${{ runner.os }}-psalm-
-
-      - name: Run Psalm
-        run: composer psalm
-
-      - name: Run tests
-        run: composer test
+      - run: vendor/bin/phpunit
