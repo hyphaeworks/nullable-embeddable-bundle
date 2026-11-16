@@ -21,11 +21,13 @@ final class NullableEmbeddableListener
     public function loadClassMetadata(LoadClassMetadataEventArgs $args): void
     {
         $metadata = $args->getClassMetadata();
-        if ([] === $metadata->getReflectionClass()->getAttributes(ContainsNullableEmbeddable::class)) {
+        $listener = ['class' => self::class, 'method' => 'postLoad'];
+        if (!$this->isMarked($metadata->getReflectionClass())
+            || \in_array($listener, $metadata->entityListeners[Events::postLoad] ?? [], true)) {
             return;
         }
 
-        $metadata->addEntityListener(Events::postLoad, self::class, 'postLoad');
+        $metadata->addEntityListener(Events::postLoad, $listener['class'], $listener['method']);
     }
 
     /**
@@ -39,6 +41,20 @@ final class NullableEmbeddableListener
         foreach ($nullableEmbeddedProperties as $nullableEmbeddedProperty) {
             $nullableEmbeddedProperty->nullifyIfEmpty($entity);
         }
+    }
+
+    /**
+     * @param \ReflectionClass<object> $class
+     */
+    private function isMarked(\ReflectionClass $class): bool
+    {
+        do {
+            if ([] !== $class->getAttributes(ContainsNullableEmbeddable::class)) {
+                return true;
+            }
+        } while (false !== $class = $class->getParentClass());
+
+        return false;
     }
 
     /**
@@ -60,11 +76,11 @@ final class NullableEmbeddableListener
             $segments = explode('.', $path);
             $fieldName = array_pop($segments);
             foreach ($segments as $depth => $segment) {
-                $ownerPath[] = $ownerClass->getProperty($segment);
+                $ownerPath[] = $this->property($ownerClass, $segment);
                 $ownerClass = $this->embeddableClass($metadata, implode('.', \array_slice($segments, 0, $depth + 1)));
             }
 
-            $property = $ownerClass->getProperty($fieldName);
+            $property = $this->property($ownerClass, $fieldName);
             if (!$this->isNullable($property)) {
                 continue;
             }
@@ -80,6 +96,20 @@ final class NullableEmbeddableListener
         }
 
         return $nullableEmbeddedProperties;
+    }
+
+    /**
+     * @param \ReflectionClass<object> $class
+     *
+     * @throws \ReflectionException
+     */
+    private function property(\ReflectionClass $class, string $name): \ReflectionProperty
+    {
+        while (!$class->hasProperty($name) && false !== $parentClass = $class->getParentClass()) {
+            $class = $parentClass;
+        }
+
+        return $class->getProperty($name);
     }
 
     /**

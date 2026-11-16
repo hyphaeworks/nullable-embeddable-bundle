@@ -51,6 +51,7 @@ private $emailAddress;
 ```
 
 Embedded properties with a non-nullable type are left alone.
+The marker is inherited: subclasses of a marked entity or mapped superclass are handled too.
 With XML mapping, the marker attribute still goes on the entity class.
 
 ## Rules

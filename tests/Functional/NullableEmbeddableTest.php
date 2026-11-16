@@ -8,14 +8,18 @@ use Doctrine\ORM\EntityManagerInterface;
 use Doctrine\ORM\Tools\SchemaTool;
 use Hyphaeworks\NullableEmbeddableBundle\Exception\ReadonlyEmbeddedPropertyException;
 use Hyphaeworks\NullableEmbeddableBundle\Tests\Functional\Entity\AttributesTestEntity;
+use Hyphaeworks\NullableEmbeddableBundle\Tests\Functional\Entity\ChildWithOwnEntityListener;
 use Hyphaeworks\NullableEmbeddableBundle\Tests\Functional\Entity\EmailAddress;
+use Hyphaeworks\NullableEmbeddableBundle\Tests\Functional\Entity\EntityExtendingMarkedMappedSuperclass;
 use Hyphaeworks\NullableEmbeddableBundle\Tests\Functional\Entity\EntityWithNestedEmbeddable;
 use Hyphaeworks\NullableEmbeddableBundle\Tests\Functional\Entity\EntityWithReadonlyEmbedded;
 use Hyphaeworks\NullableEmbeddableBundle\Tests\Functional\Entity\EntityWithReadonlyNestedEmbedded;
 use Hyphaeworks\NullableEmbeddableBundle\Tests\Functional\Entity\EntityWithStrictEmailAddress;
+use Hyphaeworks\NullableEmbeddableBundle\Tests\Functional\Entity\MarkedChildEntity;
 use Hyphaeworks\NullableEmbeddableBundle\Tests\Functional\Entity\Owner;
 use Hyphaeworks\NullableEmbeddableBundle\Tests\Functional\Entity\Price;
 use Hyphaeworks\NullableEmbeddableBundle\Tests\Functional\Entity\PriceWithReadonlyContact;
+use Hyphaeworks\NullableEmbeddableBundle\Tests\Functional\Entity\UnmarkedChildEntity;
 use Hyphaeworks\NullableEmbeddableBundle\Tests\Functional\XmlEntity\XmlTestEntity;
 use PHPUnit\Framework\Attributes\Test;
 use Symfony\Bundle\FrameworkBundle\Test\KernelTestCase;
@@ -65,6 +69,50 @@ final class NullableEmbeddableTest extends KernelTestCase
     public function emptyEmbeddableOfXmlMappedEntityWithUntypedMarkedPropertyIsLoadedAsNull(): void
     {
         $entity = new XmlTestEntity();
+        $entity->setEmailAddress(new EmailAddress(address: null));
+
+        $reloaded = $this->persistAndReload($entity);
+
+        self::assertNull($reloaded->getEmailAddress());
+    }
+
+    #[Test]
+    public function emptyEmbeddableOfChildOfMarkedEntityIsLoadedAsNull(): void
+    {
+        $entity = new UnmarkedChildEntity();
+        $entity->setEmailAddress(new EmailAddress(address: null));
+
+        $reloaded = $this->persistAndReload($entity);
+
+        self::assertNull($reloaded->getEmailAddress());
+    }
+
+    #[Test]
+    public function emptyEmbeddableOfMarkedChildOfMarkedEntityIsLoadedAsNull(): void
+    {
+        $entity = new MarkedChildEntity();
+        $entity->setEmailAddress(new EmailAddress(address: null));
+
+        $reloaded = $this->persistAndReload($entity);
+
+        self::assertNull($reloaded->getEmailAddress());
+    }
+
+    #[Test]
+    public function emptyEmbeddableOfChildWithOwnEntityListenerIsLoadedAsNull(): void
+    {
+        $entity = new ChildWithOwnEntityListener();
+        $entity->setEmailAddress(new EmailAddress(address: null));
+
+        $reloaded = $this->persistAndReload($entity);
+
+        self::assertNull($reloaded->getEmailAddress());
+    }
+
+    #[Test]
+    public function emptyEmbeddableOfEntityExtendingMarkedMappedSuperclassIsLoadedAsNull(): void
+    {
+        $entity = new EntityExtendingMarkedMappedSuperclass();
         $entity->setEmailAddress(new EmailAddress(address: null));
 
         $reloaded = $this->persistAndReload($entity);
