@@ -3,6 +3,13 @@
     "description": "Symfony bundle for handling nullable Doctrine embeddables",
     "type": "symfony-bundle",
     "license": "MIT",
+    "keywords": ["symfony", "symfony-bundle", "doctrine", "doctrine-orm", "embeddable", "nullable", "value-object"],
+    "homepage": "https://github.com/hyphaeworks/nullable-embeddable-bundle",
+    "authors": [
+        {
+            "name": "Wolfgang Klinger"
+        }
+    ],
     "require": {
         "php": "^8.2",
         "symfony/framework-bundle": "^6.4 || ^7.4 || ^8.0",
@@ -11,7 +18,11 @@
     },
     "autoload": {
         "psr-4": {
-            "Hyphaeworks\\NullableEmbeddableBundle\\": "src/",
+            "Hyphaeworks\\NullableEmbeddableBundle\\": "src/"
+        }
+    },
+    "autoload-dev": {
+        "psr-4": {
             "Hyphaeworks\\NullableEmbeddableBundle\\Tests\\": "tests/"
         }
     },
