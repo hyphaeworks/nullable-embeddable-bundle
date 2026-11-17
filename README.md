@@ -39,7 +39,7 @@ final class EmailAddress
 {
     public function __construct(
         #[ORM\Column(nullable: true)]
-        public readonly ?string $address = null,
+        public ?string $address = null,
     ) {
     }
 }
@@ -74,10 +74,11 @@ This works with attribute and XML mapping, nested embeddables, inherited propert
 - A property is only set to `null` when that is possible. These are left exactly as Doctrine loads them,
   because they may be deliberate:
   - a non-nullable embedded property (`EmailAddress $emailAddress`);
-  - a `readonly` embedded property, which cannot be changed after Doctrine has set it
-    (the properties *inside* the embeddable may be `readonly`);
+  - a `readonly` embedded property, which cannot be changed after Doctrine has set it;
   - an embeddable with a `NOT NULL` column: the database never returns all of its columns as `NULL`,
     so there is nothing to set to `null`. To store `null` in such a property, every column needs `nullable: true`.
+- Avoid `readonly` in embeddables if you use `refresh()`: Doctrine itself cannot refresh an entity with a `readonly`
+  embedded property or an embeddable with `readonly` properties, with or without this bundle.
 - Single-column value objects (an email address, a currency code) are often better served by a
   [custom DBAL type](https://www.doctrine-project.org/projects/doctrine-orm/en/current/cookbook/custom-mapping-types.html).
 
